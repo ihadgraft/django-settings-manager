@@ -1,0 +1,87 @@
+import pytest
+from settings_manager import loading
+import os
+
+
+def item_processor(value, **kwargs):
+    return '%s_%s' % (value, kwargs['default'])
+
+
+def test_load_settings_files(settings_files):
+    result = loading.load_settings_files(settings_files)
+    assert os.path.basename(result[0]['_meta']['file']) == 'variables.yaml'
+    assert os.path.basename(result[1]['_meta']['file']) == 'base.yml'
+    assert os.path.basename(result[2]['_meta']['file']) == 'user.yaml'
+
+
+class TestConfigurationItemType(object):
+
+    def test_not_set(self):
+        i = loading.ConfigurationItem("FOO_SETTING", {})
+        assert i.type == 'setting'
+
+    def test_set(self):
+        i = loading.ConfigurationItem("FOO_SETTING", {
+            "_meta": {"type": "variable"}
+        })
+        assert i.type == 'variable'
+
+    def test_set_invalid(self):
+        with pytest.raises(loading.InvalidConfigurationItemType):
+            loading.ConfigurationItem("FOO_SETTNG", {
+                "_meta": {"type": "invalid"}
+            })
+
+
+class TestConfigurationItemPriority(object):
+
+    def test_not_set(self):
+        i = loading.ConfigurationItem("FOO_SETTING", {})
+        assert i.priority == 0
+
+    def test_set(self):
+        i = loading.ConfigurationItem("FOO_SETTING", {
+            "_meta": {"priority": 10}
+        })
+        assert i.priority == 10
+
+    def test_set_non_integer(self):
+        with pytest.raises(loading.ConfigurationItemError, match='Priority must be an int'):
+            loading.ConfigurationItem("FOO_SETTNG", {
+                "_meta": {"priority": "string"}
+            })
+
+
+class TestConfigurationItemGetValue(object):
+
+    def test_processors(self):
+        i = loading.ConfigurationItem('FOO_SETTING', {
+            "_meta": {
+                "processors": [
+                    {
+                        "name": "tests.test_loading.item_processor",
+                        "kwargs": {"default": "bar"},
+                    },
+                    {
+                        "name": "tests.test_loading.item_processor",
+                        "kwargs": {"default": "baz"},
+                    }
+                ]
+            },
+            "_value": "foo"
+        })
+        assert i.value == "foo_bar_baz"
+
+    def test_nondict(self):
+        i = loading.ConfigurationItem('FOO_SETTING', {
+            "_meta": {},
+            "_value": "foo",
+        })
+        assert i.value == "foo"
+
+    def test_dict(self):
+        i = loading.ConfigurationItem("FOO_SETTING", {
+            "_meta": {},
+            "item": "foo"
+        })
+        assert i.value == {"item": "foo"}

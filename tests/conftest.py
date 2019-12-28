@@ -21,15 +21,15 @@ def settings_files():
       _meta:
         type: variable
         processors:
-          settings_manager.processor.GetEnv:
-            default: postgres_user
+          - name: settings_manager.processor.GetEnv
+            kwargs: {default: postgres_user}
       _value: DJANGO_DB_USER
       
     db_password:
       _meta:
         type: variable
         processors:
-          settings_manager.processor.GetEnv:
+          - name: settings_manager.processor.GetEnv
       _value: DJANGO_DB_PASSWORD
     """
     _save('variables', 'variables.yaml', y)
