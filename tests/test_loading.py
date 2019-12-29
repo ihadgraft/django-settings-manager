@@ -53,18 +53,8 @@ class TestConfigurationItemGetValue(object):
         })
         assert i.value == "foo_bar_baz"
 
-    def test_nondict(self):
-        i = loading.ConfigurationItem('FOO_SETTING', {
-            "_meta": {},
-            "_value": "foo",
-        })
-        assert i.value == "foo"
-
-    def test_dict(self):
-        i = loading.ConfigurationItem("FOO_SETTING", {
-            "_meta": {},
-            "item": "foo"
-        })
+    def test_value(self):
+        i = loading.ConfigurationItem("FOO_SETTING", {}, {"item": "foo"})
         assert i.value == {"item": "foo"}
 
 
