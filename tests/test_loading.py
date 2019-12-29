@@ -33,25 +33,6 @@ class TestConfigurationItemType(object):
             })
 
 
-class TestConfigurationItemPriority(object):
-
-    def test_not_set(self):
-        i = loading.ConfigurationItem("FOO_SETTING", {})
-        assert i.priority == 0
-
-    def test_set(self):
-        i = loading.ConfigurationItem("FOO_SETTING", {
-            "_meta": {"priority": 10}
-        })
-        assert i.priority == 10
-
-    def test_set_non_integer(self):
-        with pytest.raises(loading.ConfigurationItemError, match='Priority must be an int'):
-            loading.ConfigurationItem("FOO_SETTNG", {
-                "_meta": {"priority": "string"}
-            })
-
-
 class TestConfigurationItemGetValue(object):
 
     def test_processors(self):
@@ -85,3 +66,30 @@ class TestConfigurationItemGetValue(object):
             "item": "foo"
         })
         assert i.value == {"item": "foo"}
+
+
+def test_apply_context():
+    value = {
+        "list": [
+            {"value": "%(value)s"},
+        ],
+    }
+    assert loading.apply_context(value, {"value": "foo"}) == {"list": [{"value": "foo"}]}
+
+
+class TestParseSettingsData(object):
+
+    def test_parse(self):
+        data = {
+            "a_value": {
+                "_meta": {
+                    "type": "variable",
+                },
+                "_value": "a",
+            },
+
+            "setting_a": "%(a_value)s",
+            "setting_b": "%(b_value)s",
+        }
+        assert (loading.parse_settings_data(data, {"b_value": "b"}) == {"setting_a": "a", "setting_b": "b"})
+

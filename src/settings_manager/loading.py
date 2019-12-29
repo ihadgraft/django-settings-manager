@@ -21,6 +21,7 @@ class ConfigurationItem(object):
     name = None  # type: str
     _conf = None  # type: dict
     _value = None  # type: Any
+    context = None  # type: dict
 
     def __init__(self, name, conf):
         self.name = name
@@ -32,20 +33,16 @@ class ConfigurationItem(object):
                 self.type, ", ".join(self.ALLOWED_TYPES)
             ))
 
-        # validate priority
-        if not isinstance(self.priority, int):
-            raise ConfigurationItemError("Priority must be an int")
-
     @property
     def type(self):
+        if isinstance(self._conf, str):
+            return 'setting'
         return self._conf.get('_meta', {}).get('type', 'setting')
 
     @property
-    def priority(self):
-        return self._conf.get('_meta', {}).get('priority', 0)
-
-    @property
     def value(self):
+        if isinstance(self._conf, str):
+            return self._conf
         if '_value' in self._conf:
             value = self._conf['_value']
         else:
@@ -67,4 +64,31 @@ def load_settings_files(settings_dirs):
             data.setdefault('_meta', {})
             data['_meta']['file'] = f
             result.append(data)
+
     return sorted(result, key=lambda e: e.get('_meta', {}).get('priority', 0))
+
+
+def apply_context(value, context):
+    if isinstance(value, dict):
+        return {k: apply_context(v, context) for k, v in value.items()}
+    elif isinstance(value, list):
+        return [apply_context(v, context) for v in value]
+    elif isinstance(value, str):
+        return value % context
+    else:
+        return value
+
+
+def parse_settings_data(data, context=None):
+    settings = {}
+    if context is None:
+        context = {}
+
+    for k in [k for k in data if not k.startswith('_')]:
+        item = ConfigurationItem(k, data[k])
+        value = apply_context(item.value, context)
+        if item.type == 'variable':
+            context[item.name] = value
+        elif item.type == 'setting':
+            settings[item.name] = value
+    return settings
