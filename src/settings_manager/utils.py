@@ -1,8 +1,10 @@
-import importlib
+import os
+import re
 
 
-def load_module_attr(cls_string):
-    parts = cls_string.split('.')
-    package, module, attr = parts[:-2], parts[-2], parts[-1]
-    m = importlib.import_module(module, package)
-    return getattr(m, attr)
+def list_files(dir_list, match=None):
+    for dir_path in dir_list:
+        return (
+            os.path.join(dir_path, p) for p in os.listdir(dir_path)
+            if (match is None) or (re.search(match, p) is not None)
+        )

@@ -7,10 +7,12 @@ class ConfigError(Exception):
 
 class ConfigItemBase(object):
     default_processors = None  # type: list
+    meta = None  # type: dict
     conf = None  # type: list or dict or str
 
-    def __init__(self, conf):
+    def __init__(self, conf, meta):
         self.conf = conf
+        self.meta = meta
         self.default_processors = [
             'settings_manager.processing.VariableSubstitutionProcessor',
         ]
