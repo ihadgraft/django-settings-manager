@@ -5,15 +5,15 @@ import pytest
 class TestStringToBoolProcessor(object):
 
     def test_true(self):
-        p = processing.StringToBoolProcessor()
+        p = processing.ValueToBoolProcessor()
         assert p.process_value('a', {})
 
     def test_false(self):
-        p = processing.StringToBoolProcessor()
+        p = processing.ValueToBoolProcessor()
         assert not p.process_value(' ', {})
 
     def test_non_string(self):
-        p = processing.StringToBoolProcessor()
+        p = processing.ValueToBoolProcessor()
         with pytest.raises(processing.ProcessingError, match="Value is not a string"):
             assert not p.process_value(['a'], {})
 
