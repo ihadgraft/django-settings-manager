@@ -85,10 +85,10 @@ class ConfigManager(object):
                     scope = 'variable' if isinstance(item, Variable) else 'setting'
                     value = item.handler(**substitute_variables(conf, variables))
                 else:
-                    value = substitute_variables(item, variables)
+                    value = substitute_variables(conf, variables)
                     scope = 'setting'
 
                 if scope == 'variable':
                     variables[name] = value
-
-                print(name, scope, value)
+                else:
+                    setattr(module, name, value)
