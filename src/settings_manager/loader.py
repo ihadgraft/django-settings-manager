@@ -1,43 +1,74 @@
 import copy
 import os
 import re
+from collections import OrderedDict
+
 import yaml
 
 from settings_manager.exceptions import ConfigurationError
-from settings_manager.handler import VariableSubstitutionHandler, EnvironmentVariableHandler
+from settings_manager.handler import EnvironmentVariableHandler
 
 
 class ConfigLoader(object):
-    handlers = None
-    variables = None
+    handlers = None  # type: dict
+    variables = None  # type: dict
+    default_handlers = None  # type: list
+    module = None
 
-    def __init__(self):
+    def __init__(self, module):
+        self.module = module
         self.handlers = {
-            'substitute_variables': VariableSubstitutionHandler(),
             'get_env': EnvironmentVariableHandler(),
         }
+        self.default_handlers = []
         self.variables = {}
 
-    def _get_value(self, name, config, context):
-        if '_handlers' in config:
-            if not isinstance(config['_handlers'], list):
-                raise ConfigurationError("The _handlers property must be a list in %s" % name)
-            handlers = []
-            for i, h in enumerate(config['_handlers']):
-                if [k for k in h if k not in ('name', 'kwargs')]:
-                    raise ConfigurationError("Valid configuration values for a handler are name, kwargs")
-                if 'name' not in h:
-                    raise ConfigurationError("A name is required for handler %s.%d" % (name, i))
-                if h['name'] not in self.handlers:
-                    raise ConfigurationError("Handler %s.%s is not a registered handler" % (name, h['name']))
-                if 'kwargs' in h and not isinstance(h['kwargs'], dict):
-                    raise ConfigurationError("Arguments must be a dict for handler %s.%d" % (name, i))
-                handlers.append((self.handlers[h['name']], h.get('kwargs', {})))
+    def _substitute_variables(self, config, variables):
+        if isinstance(config, dict):
+            return {k: self._substitute_variables(v, variables) for k, v in config.items()}
+        elif isinstance(config, list):
+            return [self._substitute_variables(v, variables) for v in config]
+        elif isinstance(config, str):
+            m = re.match(r"^{(?P<name>[^}]+)}$", config)
+            if m is not None:
+                return variables[m.group("name")]
+            return config % variables
         else:
-            handlers = [(self.handlers['substitute_variables'], {})]
+            return config
 
-        for handler, kwargs in handlers:
-            config = handler.get_value(name, config, context, **kwargs)
+    def _get_handlers(self, config):
+        if not isinstance(config, dict):
+            return
+
+        handlers = config.get('_handlers', [{'name': h} for h in self.default_handlers])
+        if not isinstance(handlers, list):
+            raise ConfigurationError("The value for '_handlers' must be a list")
+
+        for i, h in enumerate(handlers):
+            # Check for unsupported settings
+            if [k for k in h if k not in ('name', 'kwargs')]:
+                raise ConfigurationError("Valid configuration values for a handler are name, kwargs.")
+
+            # Ensure that handler has a name value.
+            if 'name' not in h:
+                raise ConfigurationError("A name is required for handler %d" % i)
+
+            handler = self.handlers.get(h['name'])
+            # Ensure the handler is registered.
+            if handler is None:
+                raise ConfigurationError("Handler %s is not a registered handler" % h['name'])
+
+            kwargs = h.get('kwargs', {})
+
+            # If kwargs exist, ensure that they are provided as a dict.
+            if not isinstance(kwargs, dict):
+                raise ConfigurationError("Arguments must be a dict for handler %d" % i)
+
+            yield handler, kwargs
+
+    def _get_value(self, name, config, context):
+        for handler, kwargs in self._get_handlers(config):
+            config = handler.get_value(context, **kwargs)
 
         return config
 
@@ -59,8 +90,12 @@ class ConfigLoader(object):
             for scope in ('variables', 'settings'):
                 for k in data.get(scope, {}):
                     try:
+                        data[scope][k] = self._substitute_variables(data[scope][k], context['variables'])
                         context[scope][k] = self._get_value(k, data[scope][k], context)
                     except Exception as exc:
-                        raise ConfigurationError("Error in configuration file '%s', %s.%s" % (file, scope, k))
+                        raise ConfigurationError("Error in configuration file '%s', %s.%s" % (file, scope, k)) from exc
+
+        for k in context['settings']:
+            setattr(self.module, k, context['settings'][k])
 
         return context['settings']
