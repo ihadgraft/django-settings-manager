@@ -17,37 +17,30 @@ def settings_files():
     y = """
     _meta: {priority: 0}
     
-    db_name:
-      _meta:
-        type: variable
-        processors:
-          - name: settings_manager.processor.GetEnv
-            kwargs: {default: postgres_user}
-      _value: DJANGO_DB_USER
-      
-    db_password:
-      _meta:
-        type: variable
-        processors:
-          - name: settings_manager.processor.GetEnv
-      _value: DJANGO_DB_PASSWORD
+    variables:
+        db_name: mydb
+        db_password:
+            _handlers:
+                - name: get_env
+                  kwargs: {key: DJANGO_DB_PASSWORD}
     """
     _save('variables', 'variables.yaml', y)
 
     y = """
     _meta: {priority: 10}
-    DEBUG: false
+    settings:
+        DEBUG: false
+        DATABASES:
+            default:
+                NAME: '{db_name}'
+                PASSWORD: '{db_password}'
     """
-    _save('base', 'base.yml', y)
+    _save('base', 'databases.yml', y)
 
     y = """
     _meta: {priority: 20}
-    DEBUG: true
-    DATABASES:
-      default:
-        ENGINE: django.db.backends.postgresql
-        NAME: '%(db_name)s'
-        PASSWORD: '%(db_password)s'
+    settings:
+        DEBUG: true
     """
     _save('user', 'user.yaml', y)
     return result
