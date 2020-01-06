@@ -1,50 +1,37 @@
 import os
+import re
 
 
-class HandlerValueNotProvided(Exception):
-    pass
+class AbstractConfigHandler(object):
+    def get_value(self, name, config, context, **kwargs):
+        raise NotImplementedError
 
 
-class Argument(object):
-    name = None  # type: str
-    required = None  # type: bool
-    help_text = None  # type: str
+class VariableSubstitutionHandler(AbstractConfigHandler):
 
-    def __init__(self, name, help_text='', required=False):
-        self.name = name
-        self.required = required
-        self.help_text = help_text
+    def get_value(self, name, config, context, **kwargs):
 
-
-def handler(help_text='', kwargs=None):
-    if kwargs is None:
-        kwargs = []
-
-    def _wrapper(target):
-        target.help_text = help_text
-        target.kwargs = kwargs
-        return target
-    return _wrapper
+        if isinstance(config, dict):
+            return {k: self.get_value(name, v, context) for k, v in config.items()}
+        elif isinstance(config, list):
+            return [self.get_value(name, v, context) for v in config]
+        elif isinstance(config, str):
+            m = re.match(r"^{(?P<name>[^}]+)}$", config)
+            if m is not None:
+                return context['variables'][m.group("name")]
+            return config % context['variables']
+        else:
+            return config
 
 
-@handler(
-    help_text="Get databases",
-    kwargs=[Argument("db_password", "The database password", True)]
-)
-def get_databases(db_password=None):
-    return {
-        "default": {
-            "ENGINE": "",
-            "PASSWORD": db_password,
-        }
-    }
+class EnvironmentVariableHandler(AbstractConfigHandler):
 
+    def get_value(self, name, config, context, **kwargs):
+        key = kwargs['key']
+        if key in os.environ:
+            return os.environ[key]
 
-@handler(
-    help_text="Get a variable from the environment",
-    kwargs=[Argument("key", "The name of the environment variable", True)],
-)
-def get_env(key=None):
-    if key in os.environ:
-        return os.environ[key]
-    raise HandlerValueNotProvided("Environment variable %s is not defined" % key)
+        if 'default' in kwargs:
+            return kwargs['default']
+
+        raise KeyError("Key '%s' is not defined in environment, and no default is provided")

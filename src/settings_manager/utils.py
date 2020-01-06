@@ -1,25 +1,7 @@
 import copy
-import os
 import re
 
 import yaml
-
-
-def _list_files(dir_list, match=None):
-    for dir_path in dir_list:
-        return (
-            os.path.join(dir_path, p) for p in os.listdir(dir_path)
-            if (match is None) or (re.search(match, p) is not None)
-        )
-
-
-def load_files(dir_list):
-    files = []
-    for file in _list_files(dir_list, r"\.ya?ml$"):
-        with open(file) as stream:
-            data = yaml.load(stream, Loader=yaml.FullLoader)
-        files.append((file, data))
-    return sorted(files, key=lambda e: e[1].get('_meta', {}).get('priority', 0))
 
 
 def merge_values(destination, source):
@@ -45,3 +27,4 @@ def substitute_variables(item, variables):
             return item % variables
     else:
         return item
+
