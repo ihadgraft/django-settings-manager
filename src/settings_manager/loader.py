@@ -1,7 +1,5 @@
-import copy
 import os
 import re
-from collections import OrderedDict
 
 import yaml
 
