@@ -3,8 +3,27 @@ import re
 
 import yaml
 
-from settings_manager.exceptions import ConfigurationError
-from settings_manager.handler import EnvironmentVariableHandler
+
+class ConfigurationError(Exception):
+    pass
+
+
+class AbstractConfigHandler(object):
+    def get_value(self, context, **kwargs):
+        raise NotImplementedError
+
+
+class EnvironmentVariableHandler(AbstractConfigHandler):
+
+    def get_value(self, context, **kwargs):
+        key = kwargs['key']
+        if key in os.environ:
+            return os.environ[key]
+
+        if 'default' in kwargs:
+            return kwargs['default']
+
+        raise KeyError("Key '%s' is not defined in environment, and no default is provided")
 
 
 class ConfigLoader(object):
