@@ -1,6 +1,6 @@
 # Settings Manager
 
-This project provides a simple and extensible strategy for managing Django settings in distributed YAML files.
+This project provides a simple and extensible strategy for managing Django settings in YAML files that can be loaded from multiple locations.
 
 ## Settings files
 
@@ -11,7 +11,7 @@ _meta:
   priority: 10
 ```
 
-Generally, it might be useful to set all files providing variables to a priority of zero, set base configuration file to 10, and local configuration overrides to 20.  For example:
+Generally, it will be useful to set all files providing variables to a low priority, set base configuration file to a higher priority, and local configuration overrides to the highest priority.  For example:
 
 ```yaml
 --- 
@@ -90,4 +90,45 @@ settings:
       - name: get_random
         kwargs: {min: 0, max: 5}
       - name: as_string
+```
+
+## Implementation in a Django project
+
+The following code loads all yaml files from the `./conf` directory, plus any files specified by the `DJANGO_CONFIG_PATHS` environment variable.
+
+For the example, the assumed file structure is:
+
+```text
+django-myproject/
+  conf/
+  src/
+    /myproject
+      /settings.py
+  setup.py
+```
+
+```python
+# File: settings.py
+import sys
+import os
+from settings_manager.loader import ConfigLoader
+
+
+# Set the module's base directory
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+
+# Set the default configuration directory
+DEFAULT_CONF_DIR = os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), "conf")
+
+# Create the loader
+loader = ConfigLoader(sys.modules[__name__])
+
+# Load all yaml files from comma-separated list of directories provided by environment variable 'DJANGO_CONFIG_PATHS'.
+paths = [p.strip() for p in os.environ.split(',') if p != '']
+
+# Insert the base settings directory into the config paths.
+paths.insert(0, DEFAULT_CONF_DIR)
+
+# Load the configuration.
+loader.load(paths)
 ```

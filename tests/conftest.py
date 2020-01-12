@@ -16,7 +16,7 @@ def settings_files():
 
     y = """
     _meta: {priority: 0}
-    
+
     variables:
         db_name: mydb
         db_password:
