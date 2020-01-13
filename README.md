@@ -16,21 +16,27 @@ Generally, it will be useful to set all files providing variables to a low prior
 ```yaml
 --- 
 # variables.yml
-_meta:
-  priority: 0
+_meta: {priority: 0}
+variables:
+  db_name: my_database
 
 ---
 # base.yml
-DEBUG: false
+_meta: {priority: 10}
+settings:
+  DEBUG: false
 
 ---
 # local.yml
-DEBUG: true
+_meta: {priority: 20}
+settings:
+  DEBUG: true
+  DATABASE_NAME: '{db_name}'
 ```
 
 ## Settings and Variables
 
-Settings are Django settings that get applied to the module and would traditionally be set in settings.py.  Variables are configuration variables that are useful for parameterizing configurations, or for getting external values using a handler.
+Settings are Django settings that get applied to the module and would traditionally be set in settings.py.  Variables are useful for parameterizing configurations, or for getting external values using a handler.
 
 Settings and variables in YAML can be specified directly, such as:
 
@@ -54,7 +60,7 @@ variables:
 
 ## Interpolating variables
 
-Now, the password can be used with:
+Now, the password set above can be used with:
 
 ```yaml
 settings:
@@ -78,7 +84,11 @@ class AsStringHandler(AbstractConfigHandler):
         return str(kwargs['value'])
 
 loader = ConfigLoader()
-loader.handlers['get_random'] = GetRandomHandler() 
+loader.handlers.update({
+    'get_random': GetRandomHandler(),
+    'as_string': AsStringHandler(),
+})
+
 ```
 
 In Yaml, the following could use the custom handlers to generate a random number and provide it as a string value.
@@ -124,7 +134,7 @@ DEFAULT_CONF_DIR = os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), "con
 loader = ConfigLoader(sys.modules[__name__])
 
 # Load all yaml files from comma-separated list of directories provided by environment variable 'DJANGO_CONFIG_PATHS'.
-paths = [p.strip() for p in os.environ.split(',') if p != '']
+paths = [p.strip() for p in os.environ.get("DJANGO_CONFIG_PATHS", "").split(',') if p != '']
 
 # Insert the base settings directory into the config paths.
 paths.insert(0, DEFAULT_CONF_DIR)
