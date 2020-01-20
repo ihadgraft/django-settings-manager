@@ -52,10 +52,14 @@ Or they can be provided by a registered handler. The following example gets the 
 
 ```yaml
 variables:
-  db_password:
+  db_user:
     _handlers:
       - name: get_env
-        kwargs: {key: DJANGO_DB_PASSWORD}
+        kwargs: {key: DJANGO_DB_USER}
+  db_password:
+    _handlers:
+      - name: get_file
+        kwargs: {file: /var/run/secrets/db-password}
 ```
 
 ## Interpolating variables
@@ -66,6 +70,7 @@ Now, the password set above can be used with:
 settings:
   DATABASES:
     default:
+      USER: '{db_user}'
       PASSWORD: '{db_password}'
 ```
 

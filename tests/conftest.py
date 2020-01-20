@@ -44,3 +44,21 @@ def settings_files():
     """
     _save('user', 'user.yaml', y)
     return result
+
+
+@pytest.fixture()
+def file_handler_data():
+    path = tempfile.mkdtemp()
+    data = {
+        'string.txt': 'foo\n\n',
+        'int.txt': '1\n',
+        'float.txt': '1.0\n',
+        'dict.yml': 'value: 1',
+        'dict.json': '{"value": 1}',
+    }
+    result = {}
+    for file, content in data.items():
+        result[file] = {'content': content, 'path': os.path.join(path, file)}
+        with open(result[file]['path'], 'w') as stream:
+            stream.write(content)
+    return result
