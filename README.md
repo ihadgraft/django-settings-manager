@@ -1,10 +1,12 @@
 # Settings Manager
 
-This project provides a simple and extensible strategy for managing Django settings in YAML files that can be loaded from multiple locations.
+This project provides a simple and extensible strategy for managing Django settings in YAML files that can be loaded from multiple locations and prioritized. This makes it easy to provide application configuration that the user can override or extend for a specific environment without having to depend on Python.  This is very useful for containerized environments (e.g. docker-compose, OpenShift/OKD) where configuration values may be derived from multiple places.  
 
-## Settings files
+The settings manager takes a list of directories and loads all *.yaml or *.yml files in them.  
 
-The settings manager takes a list of directories and loads all *.yaml or *.yml files in them.  To control the order of loading, set _meta.priority.  For example:
+## Settings file format
+
+To control the order of loading, set _meta.priority.  For example:
 
 ```yaml
 _meta:
@@ -34,7 +36,7 @@ settings:
   DATABASE_NAME: '{db_name}'
 ```
 
-## Settings and Variables
+## Settings and Variables sections
 
 Settings are Django settings that get applied to the module and would traditionally be set in settings.py.  Variables are useful for parameterizing configurations, or for getting external values using a handler.
 
@@ -48,7 +50,7 @@ settings:
   DEBUG: false
 ```
 
-Or they can be provided by a registered handler. The following example gets the value of the environment variable `DJANGO_DB_PASSWORD` and assigns it to the configuration variable `db_password`.
+Or they can be provided by a registered handler. The following example gets the value of the environment variable `DJANGO_DB_USER` and assigns it to the configuration variable `db_user`. Then, it loads the contents of `/var/run/secrets/db-password` into the variable `db_password`.
 
 ```yaml
 variables:
@@ -115,9 +117,9 @@ For the example, the assumed file structure is:
 
 ```text
 django-myproject/
-  conf/
   src/
     /myproject
+      conf/
       /settings.py
   setup.py
 ```
@@ -130,7 +132,7 @@ from settings_manager.loader import ConfigLoader
 
 
 # Set the module's base directory
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 # Set the default configuration directory
 DEFAULT_CONF_DIR = os.path.join(os.path.dirname(os.path.dirname(BASE_DIR)), "conf")
@@ -143,6 +145,11 @@ paths = [p.strip() for p in os.environ.get("DJANGO_CONFIG_PATHS", "").split(',')
 
 # Insert the base settings directory into the config paths.
 paths.insert(0, DEFAULT_CONF_DIR)
+
+# If providing additional / custom handlers, register them here
+# loader.handlers.update({
+#     "my_custom_handler": MyCustomHandler(),
+# })
 
 # Load the configuration.
 loader.load(paths)
