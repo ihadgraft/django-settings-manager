@@ -5,7 +5,7 @@ with open("README.md") as stream:
 
 setup(
     name='django-settings-manager',
-    version="0.0.2",
+    version="0.0.3",
     author="Iain Hadgraft",
     author_email="ihadgraft@gmail.com",
     description="A simple, extensible YAML-based configuration strategy for Django",
