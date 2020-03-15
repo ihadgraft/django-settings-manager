@@ -1,6 +1,8 @@
 import os
 import yaml
 from deepmerge import always_merger
+from types import ModuleType
+from typing import Any
 
 
 class SettingsError(Exception):
@@ -8,6 +10,18 @@ class SettingsError(Exception):
 
 
 def _get_for_key(obj, key):
+    """
+    Get a dict value or object attribute.
+
+    Arguments:
+        obj (dict or ModuleType): The object to get the value from.
+        key (str): The key to retrieve.
+    Returns:
+        Any: The value obtained at the key.
+    Raises:
+        KeyError: If obj is a dict and the key is not found.
+        AttributeError: If obj is a module and the key is not found.
+    """
     if isinstance(obj, dict):
         return obj[key]
     else:
@@ -15,6 +29,16 @@ def _get_for_key(obj, key):
 
 
 def _set_for_key(obj, key, value):
+    """
+    Set a dict value or object attribute.
+
+    Arguments:
+        obj (dict or ModuleType): The object to get the value from.
+        key (str): The key to retrieve.
+        value (Any):
+    Returns:
+        Any: The value obtained at the key.
+    """
     if isinstance(obj, dict):
         obj[key] = value
     else:
