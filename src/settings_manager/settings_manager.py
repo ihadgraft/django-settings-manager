@@ -46,6 +46,10 @@ def _set_for_key(obj, key, value):
     return value
 
 
+def _get_env(key):
+    return os.environ[key]
+
+
 class SettingsManager(object):
     TRUE_STRINGS = ('true', 'yes', '1')
     _config = None  # type: dict
@@ -53,7 +57,7 @@ class SettingsManager(object):
 
     def __init__(self, path):
         self.functions = {
-            "get_env": lambda k: os.environ[k],
+            "get_env": _get_env,
         }
         with open(path) as stream:
             self._config = yaml.load(stream, Loader=yaml.FullLoader)
