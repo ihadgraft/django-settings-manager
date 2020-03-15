@@ -51,7 +51,6 @@ def _get_env(key):
 
 
 class SettingsManager(object):
-    TRUE_STRINGS = ('true', 'yes', '1')
     _config = None  # type: dict
     functions = None  # type: dict
 
