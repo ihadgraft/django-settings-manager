@@ -1,1 +1,1 @@
-from .settings_manager import SettingsManager, SettingsError, SettingsWrapper, InvalidPathError
+from .settings_manager import SettingsManager, SettingsError, InvalidPathError, PathSearch

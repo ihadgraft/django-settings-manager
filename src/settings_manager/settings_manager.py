@@ -2,7 +2,6 @@ import os
 import yaml
 from deepmerge import always_merger
 from types import ModuleType
-from typing import Any
 
 
 class SettingsError(Exception):
@@ -10,107 +9,59 @@ class SettingsError(Exception):
 
 
 class InvalidPathError(SettingsError):
-    pass
+
+    def __init__(self, path, message="Value not valid at '%(path)s'"):
+        super().__init__(message % {"path": ".".join(path)})
 
 
-class SettingsWrapper(object):
+class PathSearch(object):
     module = None  # type: ModuleType
 
     def __init__(self, module):
         self.module = module
 
-    def get_value_at_path(self, path):
-        """
-        Get a value at the given path.
-
-        Args:
-            path (str): The path to the object, represented as parent.child.
-
-        Returns:
-            Any: The value of the item.
-
-        Raises:
-            InvalidPathError: If the path can't be resolved.
-        """
-        p = path.split('.')  # type: list
+    def _get_root(self, path):
         try:
-            value = getattr(self.module, p[0])
-        except AttributeError:
-            raise InvalidPathError("Attribute '%s' is not defined on module" % p[0])
+            return getattr(self.module, path[0])
+        except AttributeError as exc:
+            raise InvalidPathError(path[0]) from exc
 
-        for i in range(1, len(p)):
-            if not isinstance(value, dict):
-                raise InvalidPathError("Value at path '%s' is not a dict" % ".".join(p[:i]))
+    @staticmethod
+    def non_dict_error(path):
+        return InvalidPathError(path, message="Can't traverse through a non-dict at '%(path)s'")
+
+    def get(self, path):
+        path = path.split('.')
+        item = self._get_root(path)
+        for i, k in enumerate(path[1:]):
+            if not isinstance(item, dict):
+                raise self.non_dict_error(path[:i+1])
             try:
-                value = value[p[i]]
-            except KeyError:
-                raise InvalidPathError("No key exists at %s" % ".".join(p[:i]))
-        return value
+                item = item[k]
+            except KeyError as exc:
+                raise InvalidPathError(path[:i+1]) from exc
+        return item
 
-    def set_value_at_path(self, path, value):
-        """
-        Set a value at the given path.
+    def set(self, path, value):
+        path = path.split('.')
 
-        Args:
-            path (str): The path to the object, represented as parent.child.
-            value (Any): The value to set at path.
+        if len(path) == 1:
+            setattr(self.module, path[0], value)
+            return
 
-        Returns:
-            None:
+        item = self._get_root(path)
+        for i, k in enumerate(path[1:-1]):
+            if not isinstance(item, dict):
+                raise self.non_dict_error(path[:i+1])
+            try:
+                item = item[k]
+            except KeyError as exc:
+                raise InvalidPathError(path[:i+1]) from exc
 
-        Raises:
-            InvalidPathError: If the path can't be resolved.
-        """
-        p = path.split('.')  # type: list
+        if not isinstance(item, dict):
+            raise self.non_dict_error(path[:-1])
 
-        if len(p) == 1:
-            setattr(self.module, p[0], value)
-        else:
-            if not hasattr(self.module, p[0]):
-                setattr(self.module, p[0], {})
-            parent = getattr(self.module, p[0])
-            i = 0
-            for i, key in enumerate(p[1:-1]):
-                parent.setdefault(key, {})
-                parent = parent[key]
-            parent[p[-1]] = value
-
-
-def _get_for_key(obj, key):
-    """
-    Get a dict value or object attribute.
-
-    Arguments:
-        obj (dict or ModuleType): The object to get the value from.
-        key (str): The key to retrieve.
-    Returns:
-        Any: The value obtained at the key.
-    Raises:
-        KeyError: If obj is a dict and the key is not found.
-        AttributeError: If obj is a module and the key is not found.
-    """
-    if isinstance(obj, dict):
-        return obj[key]
-    else:
-        return getattr(obj, key)
-
-
-def _set_for_key(obj, key, value):
-    """
-    Set a dict value or object attribute.
-
-    Arguments:
-        obj (dict or ModuleType): The object to get the value from.
-        key (str): The key to retrieve.
-        value (Any):
-    Returns:
-        Any: The value obtained at the key.
-    """
-    if isinstance(obj, dict):
-        obj[key] = value
-    else:
-        setattr(obj, key, value)
-    return value
+        item[path[-1]] = value
 
 
 def _get_env(key):

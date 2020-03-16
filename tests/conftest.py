@@ -2,20 +2,18 @@ import pytest
 import tempfile
 import os
 import yaml
+from types import ModuleType
 
 
 @pytest.fixture()
 def settings_test_helper(monkeypatch):
-
-    class _Module(object):
-        pass
 
     class _ConfigTestHelper(object):
         config_file = None
         module = None
 
         def __init__(self):
-            self.module = _Module()
+            self.module = ModuleType('__test_module__')
 
         def configure(self, cm):
             cm.configure(self.module)

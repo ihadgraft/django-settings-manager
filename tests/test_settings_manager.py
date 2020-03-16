@@ -1,83 +1,48 @@
 import pytest
 import settings_manager
 import os
+from types import ModuleType
 
 
-class TestSettingsWrapperGetValue(object):
+class MockModule(ModuleType):
+    NAME = None  # type: str
+    DATA = None  # type: dict
 
-    def test_valid(self, settings_test_helper):
-        path = settings_test_helper.write({
-            "configure": {
-                "NAME": "john",
-                "FAMILY": {"parents": {"father": "jim"}},
-            }
-        })
-        sm = settings_manager.SettingsManager(path)
-        settings_test_helper.configure(sm)
-        w = settings_manager.SettingsWrapper(settings_test_helper.module)
-        assert w.get_value_at_path('NAME') == 'john'
-        assert w.get_value_at_path("FAMILY.parents.father") == 'jim'
-
-    def test_missing_path(self, settings_test_helper):
-        path = settings_test_helper.write({
-            "configure": {
-                "FAMILY": {"parents": {}},
-            }
-        })
-        sm = settings_manager.SettingsManager(path)
-        settings_test_helper.configure(sm)
-        w = settings_manager.SettingsWrapper(settings_test_helper.module)
-        with pytest.raises(settings_manager.InvalidPathError):
-            assert w.get_value_at_path('NAME') == 'john'
-        with pytest.raises(settings_manager.InvalidPathError):
-            assert w.get_value_at_path("FAMILY.parents.father") == 'jim'
-
-    def test_nondict_key(self, settings_test_helper):
-        path = settings_test_helper.write({
-            "configure": {
-                "FAMILY": {"parents": []},
-            }
-        })
-        sm = settings_manager.SettingsManager(path)
-        settings_test_helper.configure(sm)
-        w = settings_manager.SettingsWrapper(settings_test_helper.module)
-        with pytest.raises(settings_manager.InvalidPathError, match="Value at path 'FAMILY.parents' is not a dict"):
-            assert w.get_value_at_path("FAMILY.parents.father") == 'jim'
+    def __init__(self):
+        super().__init__('__mock_module__')
+        self.NAME = 'john'
+        self.DATA = {
+            'age': 32,
+            'tags': ['scholar', 'gentleman']
+        }
 
 
-class TestSettingsWrapperSetValue(object):
+class TestPathSearch(object):
 
-    def test_set_value(self, settings_test_helper):
-        path = settings_test_helper.write({
-            "configure": {
-                "NAME": "john",
-                "FAMILY": {"parents": {"father": "jim"}},
-            }
-        })
-        sm = settings_manager.SettingsManager(path)
-        settings_test_helper.configure(sm)
-        w = settings_manager.SettingsWrapper(settings_test_helper.module)
-        w.set_value_at_path('NAME', 'bill')
-        w.set_value_at_path('FAMILY.parents.father', 'bob')
-        w.set_value_at_path('NAME2', 'phyllis')
-        w.set_value_at_path('FAMILY2.parents.mother', 'rita')
-        assert w.module.NAME == 'bill'
-        assert w.module.FAMILY['parents']['father'] == 'bob'
-        assert w.module.NAME2 == 'phyllis'
-        assert w.module.FAMILY2['parents']['mother'] == 'rita'
+    def test_get(self):
+        ps = settings_manager.PathSearch(MockModule())
+        assert ps.get("NAME") == "john"
+        assert ps.get("DATA.age") == 32
+        assert ps.get("DATA.tags") == ['scholar', 'gentleman']
 
-    @pytest.mark.skip()
-    def test_nondict_key(self, settings_test_helper):
-        path = settings_test_helper.write({
-            "configure": {
-                "FAMILY": {"parents": []},
-            }
-        })
-        sm = settings_manager.SettingsManager(path)
-        settings_test_helper.configure(sm)
-        w = settings_manager.SettingsWrapper(settings_test_helper.module)
-        with pytest.raises(settings_manager.InvalidPathError, match="Value at path 'FAMILY.parents' is not a dict"):
-            assert w.set_value_at_path("FAMILY.parents.father", "jim")
+    def test_get_nondict_key(self):
+        ps = settings_manager.PathSearch(MockModule())
+        with pytest.raises(settings_manager.InvalidPathError, match="Can't traverse through a non-dict at 'DATA.tags'"):
+            ps.get('DATA.tags.scholar')
+
+    def test_set_existing_path(self):
+        m = MockModule()
+        ps = settings_manager.PathSearch(m)
+        ps.set('NAME', 'bill')
+        ps.set('DATA.age', 44)
+        assert m.NAME == 'bill'
+        assert m.DATA['age'] == 44
+
+    def test_set_nondict_key(self):
+        m = MockModule()
+        ps = settings_manager.PathSearch(m)
+        with pytest.raises(settings_manager.InvalidPathError, match="Can't traverse through a non-dict at 'DATA.tags'"):
+            ps.set('DATA.tags.scholar', 'value')
 
 
 def test_config_manager(settings_test_helper):
