@@ -59,38 +59,26 @@ class TestGetValueForPath(object):
 
 class TestSetValueForPath(object):
 
-    def test_exists(self):
+    def test_ovewrite(self):
         module = MockModule()
         settings_manager.set_value_for_path(module, 'NAME', 'bill')
         settings_manager.set_value_for_path(module, 'DATA.age', 40)
-        settings_manager.set_value_for_path(module, 'POSITION', 'A')
-        settings_manager.set_value_for_path(module, 'TREE.branch', 'B')
         assert module.NAME == 'bill'
         assert module.DATA['age'] == 40
+
+    def test_new(self):
+        module = MockModule()
+        settings_manager.set_value_for_path(module, 'POSITION', 'A')
+        settings_manager.set_value_for_path(module, 'TREE.branch', 'B')
         assert getattr(module, 'POSITION') == 'A'
         assert getattr(module, 'TREE')['branch'] == 'B'
 
-    @pytest.mark.skip()
-    def test_not_exists(self):
+    def test_nondict_key(self):
         module = MockModule()
-        with pytest.raises(settings_manager.InvalidPathError, match="Value not valid at 'POSITION'"):
-            settings_manager.get_value_for_path(module, 'POSITION')
-        with pytest.raises(settings_manager.InvalidPathError, match="Value not valid at 'DATA.position'"):
-            settings_manager.get_value_for_path(module, 'DATA.position')
+        with pytest.raises(settings_manager.InvalidPathError, match="Not a dict or module at path 'DATA.tags'"):
+            settings_manager.set_value_for_path(module, 'DATA.tags.scholar', 'test')
 
 
-@pytest.mark.skip()
-class TestSetValueForKey(object):
-
-    def tests_overwrite(self):
-        module = MockModule()
-        settings_manager.set_value_for_key(module, 'NAME', 'bob')
-        settings_manager.set_value_for_key(module, 'DATA.age', 40)
-        assert module.NAME == 'bob'
-        assert module.DATA['age'] == 40
-
-
-@pytest.mark.skip()
 def test_config_manager(settings_test_helper):
     path = settings_test_helper.write({
         "configure": {
@@ -103,7 +91,6 @@ def test_config_manager(settings_test_helper):
     assert getattr(module, "NAME") == "john"
 
 
-@pytest.mark.skip()
 def test_env_override(settings_test_helper, monkeypatch):
     path = settings_test_helper.write({
         "inject": {

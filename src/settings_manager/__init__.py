@@ -18,7 +18,7 @@ def get_accessor_functions(obj):
         def _set(key, value):
             setattr(obj, key, value)
     else:
-        raise TypeError("Wrong type for object: %s" % repr(obj))
+        raise TypeError("Wrong type for object at %s" % repr(obj))
     return _get, _set
 
 
@@ -45,15 +45,17 @@ def set_value_for_path(root, path, value, index=0):
     _get, _set = get_accessor_functions(root)
 
     try:
-        if key == p[-1]:
-            _set(key, value)
-            return
-        next_root = _get(key)
-    except (AttributeError, KeyError):
-        _set(key, {})
-        next_root = _get(key)
-
-    set_value_for_path(next_root, path, value, index + 1)
+        try:
+            if key == p[-1]:
+                _set(key, value)
+                return
+            next_root = _get(key)
+        except (AttributeError, KeyError):
+            _set(key, {})
+            next_root = _get(key)
+        set_value_for_path(next_root, path, value, index + 1)
+    except TypeError as exc:
+        raise InvalidPathError(p[:index + 1], "Not a dict or module at path '%(path)s'") from exc
 
 
 class SettingsError(Exception):
@@ -105,7 +107,6 @@ class SettingsManager(object):
         return self.functions[name](*args, **kwargs)
 
     def override(self, module):
-        path_search = PathSearch(module)
 
         for k, v in self._config.get('override', {}).items():
             if hasattr(module, k):
@@ -115,16 +116,9 @@ class SettingsManager(object):
             setattr(module, k, v)
 
         for k, inject in self._config.get('inject', {}).items():
-            path_search = PathSearch(module)
-
-            try:
-                path_search.get(k)
-            except InvalidPathError:
-                path_search.set(k, {})
-
-            # value = self._call_function(inject)
-            # for processor in inject.get('value_processors', []):
-            #     value = self._call_function(processor, {':value:': value})
-            # _set_for_key(item, keys[-1], value)
+            value = self._call_function(inject)
+            for processor in inject.get('value_processors', []):
+                value = self._call_function(processor, {':value:': value})
+            set_value_for_path(module, k, value)
 
 
