@@ -17,34 +17,80 @@ class MockModule(ModuleType):
         }
 
 
-class TestPathSearch(object):
+class TestGetAccessorFunctions(object):
 
-    def test_get(self):
-        ps = settings_manager.PathSearch(MockModule())
-        assert ps.get("NAME") == "john"
-        assert ps.get("DATA.age") == 32
-        assert ps.get("DATA.tags") == ['scholar', 'gentleman']
+    def test_module_get(self):
+        module = MockModule()
+        _get, _set = settings_manager.get_accessor_functions(module)
+        assert _get('NAME') == 'john'
 
-    def test_get_nondict_key(self):
-        ps = settings_manager.PathSearch(MockModule())
-        with pytest.raises(settings_manager.InvalidPathError, match="Can't traverse through a non-dict at 'DATA.tags'"):
-            ps.get('DATA.tags.scholar')
+    def test_module_set(self):
+        module = MockModule()
+        _get, _set = settings_manager.get_accessor_functions(module)
+        _set('NAME', 'bill')
+        assert module.NAME == 'bill'
 
-    def test_set_existing_path(self):
-        m = MockModule()
-        ps = settings_manager.PathSearch(m)
-        ps.set('NAME', 'bill')
-        ps.set('DATA.age', 44)
-        assert m.NAME == 'bill'
-        assert m.DATA['age'] == 44
+    def test_dict_get(self):
+        module = MockModule()
+        _get, _set = settings_manager.get_accessor_functions(module.DATA)
+        assert _get('age') == 32
 
-    def test_set_nondict_key(self):
-        m = MockModule()
-        ps = settings_manager.PathSearch(m)
-        with pytest.raises(settings_manager.InvalidPathError, match="Can't traverse through a non-dict at 'DATA.tags'"):
-            ps.set('DATA.tags.scholar', 'value')
+    def test_dict_set(self):
+        module = MockModule()
+        _get, _set = settings_manager.get_accessor_functions(module.DATA)
+        _set('age', 40)
+        assert module.DATA['age'] == 40
 
 
+class TestGetValueForPath(object):
+
+    def test_exists(self):
+        module = MockModule()
+        assert settings_manager.get_value_for_path(module, 'NAME') == 'john'
+        assert settings_manager.get_value_for_path(module, 'DATA.age') == 32
+
+    def test_not_exists(self):
+        module = MockModule()
+        with pytest.raises(settings_manager.InvalidPathError, match="Value not valid at 'POSITION'"):
+            settings_manager.get_value_for_path(module, 'POSITION')
+        with pytest.raises(settings_manager.InvalidPathError, match="Value not valid at 'DATA.position'"):
+            settings_manager.get_value_for_path(module, 'DATA.position')
+
+
+class TestSetValueForPath(object):
+
+    def test_exists(self):
+        module = MockModule()
+        settings_manager.set_value_for_path(module, 'NAME', 'bill')
+        settings_manager.set_value_for_path(module, 'DATA.age', 40)
+        settings_manager.set_value_for_path(module, 'POSITION', 'A')
+        settings_manager.set_value_for_path(module, 'TREE.branch', 'B')
+        assert module.NAME == 'bill'
+        assert module.DATA['age'] == 40
+        assert getattr(module, 'POSITION') == 'A'
+        assert getattr(module, 'TREE')['branch'] == 'B'
+
+    @pytest.mark.skip()
+    def test_not_exists(self):
+        module = MockModule()
+        with pytest.raises(settings_manager.InvalidPathError, match="Value not valid at 'POSITION'"):
+            settings_manager.get_value_for_path(module, 'POSITION')
+        with pytest.raises(settings_manager.InvalidPathError, match="Value not valid at 'DATA.position'"):
+            settings_manager.get_value_for_path(module, 'DATA.position')
+
+
+@pytest.mark.skip()
+class TestSetValueForKey(object):
+
+    def tests_overwrite(self):
+        module = MockModule()
+        settings_manager.set_value_for_key(module, 'NAME', 'bob')
+        settings_manager.set_value_for_key(module, 'DATA.age', 40)
+        assert module.NAME == 'bob'
+        assert module.DATA['age'] == 40
+
+
+@pytest.mark.skip()
 def test_config_manager(settings_test_helper):
     path = settings_test_helper.write({
         "configure": {
@@ -57,18 +103,7 @@ def test_config_manager(settings_test_helper):
     assert getattr(module, "NAME") == "john"
 
 
-# def test_set_dict(settings_test_helper):
-#     path = settings_test_helper.write({
-#         "env": {
-#             "DATABASES.default.PASSWORD": [
-#                 {
-#                     "function":
-#                 }
-#             ]
-#         }
-#     })
-#     sm = settings_manager.SettingsManager(path)
-
+@pytest.mark.skip()
 def test_env_override(settings_test_helper, monkeypatch):
     path = settings_test_helper.write({
         "inject": {
