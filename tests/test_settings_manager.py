@@ -103,11 +103,33 @@ def test_env_override(settings_test_helper, monkeypatch):
                 "function": "get_env",
                 "args": ["DJANGO_STATIC_PATH"]
             },
+
+            "TRUE_STRING": {
+                "function": "get_env",
+                "args": ["DJANGO_TRUE_STRING"],
+                "value_processors": [{
+                    "function": "str_to_bool",
+                    "args": ["<<value>>"],
+                }]
+            },
+
+            "FALSE_STRING": {
+                "function": "get_env",
+                "args": ["DJANGO_FALSE_STRING"],
+                "value_processors": [{
+                    "function": "str_to_bool",
+                    "args": ["<<value>>"],
+                }]
+            }
         }
     })
     cm = settings_manager.SettingsManager(path)
     monkeypatch.setitem(os.environ, "DJANGO_DATABASE_PASSWORD", "test1234")
     monkeypatch.setitem(os.environ, "DJANGO_STATIC_PATH", "/app/static")
+    monkeypatch.setitem(os.environ, "DJANGO_TRUE_STRING", "True")
+    monkeypatch.setitem(os.environ, "DJANGO_FALSE_STRING", "False")
     module = settings_test_helper.override(cm)
     assert getattr(module, "DATABASES")['default']['PASSWORD'] == 'test1234'
     assert getattr(module, "STATIC_PATH") == '/app/static'
+    assert getattr(module, "TRUE_STRING") and (type(getattr(module, "TRUE_STRING")) is bool)
+    assert (not getattr(module, "FALSE_STRING")) and (type(getattr(module, "FALSE_STRING")) is bool)

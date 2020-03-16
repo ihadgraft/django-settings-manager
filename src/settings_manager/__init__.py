@@ -72,6 +72,15 @@ def _get_env(key):
     return os.environ[key]
 
 
+def _str_to_bool(value):
+    if value.lower() in ("1", "true", "yes"):
+        return True
+    elif value.lower() in ("0", "false", "no"):
+        return False
+    else:
+        raise ValueError("Could not translate value '%s' to a bool" % value)
+
+
 class SettingsManager(object):
     _config = None  # type: dict
     functions = None  # type: dict
@@ -79,7 +88,7 @@ class SettingsManager(object):
     def __init__(self, settings_file_path):
         self.functions = {
             "get_env": _get_env,
-            "bool": bool,
+            "str_to_bool": _str_to_bool,
             "int": int,
         }
         with open(settings_file_path) as stream:
@@ -118,7 +127,7 @@ class SettingsManager(object):
         for k, inject in self._config.get('inject', {}).items():
             value = self._call_function(inject)
             for processor in inject.get('value_processors', []):
-                value = self._call_function(processor, {':value:': value})
+                value = self._call_function(processor, {'<<value>>': value})
             set_value_for_path(module, k, value)
 
 
