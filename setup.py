@@ -8,7 +8,8 @@ setup(
     version="0.0.4",
     author="Iain Hadgraft",
     author_email="ihadgraft@gmail.com",
-    description="A simple, extensible YAML-based configuration strategy for Django",
+    description=("A simple, extensible YAML-based configuration strategy for "
+                 "Django"),
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/ihadgraft/django-settings-manager",
@@ -21,7 +22,7 @@ setup(
     packages=find_packages('src'),
     include_package_data=True,
     install_requires=[
-        "pyyaml>=5.1", "deepmerge"
+        "pyyaml>=5.1", "jinja2"
     ],
     extras_require={
         'dev': ['pytest'],

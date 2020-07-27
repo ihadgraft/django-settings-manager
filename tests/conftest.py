@@ -1,35 +1,52 @@
 import pytest
-import tempfile
 import os
 import yaml
-from types import ModuleType
+from hvac.exceptions import VaultError
 
 
 @pytest.fixture()
-def settings_test_helper(monkeypatch):
+def hvac_client():
 
-    class _ConfigTestHelper(object):
-        config_file = None
-        module = None
+    class _Client(object):
+        url = None  # type: str
+        auth = None  # type: tuple
+        secret_map = None  # type: dict
 
-        def __init__(self):
-            self.module = ModuleType('__test_module__')
+        def __init__(self, url: str, **kwargs):
+            self.url = url
+            self.secret_map = {}
 
-        def configure(self, cm):
-            cm.configure(self.module)
-            return self.module
+            def _read_secret(path: str, mount_point: str = 'secret'):
+                try:
+                    return self.secret_map[1][mount_point][path]
+                except AttributeError:
+                    raise VaultError("No such item")
 
-        def override(self, cm):
-            cm.override(self.module)
-            return self.module
+            def _read_secret_version(path: str, version: int = 1, mount_point:
+                                     str = 'secret'):
+                try:
+                    return self.secret_map[2][mount_point][path][version]
+                except AttributeError:
+                    raise VaultError("No such item")
 
-        def write(self, data):
-            temp_dir = tempfile.mkdtemp()
-            self.config_file = os.path.join(temp_dir, 'config.yaml')
+            self.secrets = type('test', (object,), {})
+            self.secrets.kv = type('test', (object,), {})
+            self.secrets.kv.v1 = type('test', (object,), {})
+            self.secrets.kv.v2 = type('test', (object,), {})
+            self.secrets.kv.v1.read_secret = _read_secret
+            self.secrets.kv.v2.read_secret_version = _read_secret_version
 
-            with open(self.config_file, 'w') as stream:
-                yaml.dump(data, stream)
+        def auth_approle(self, role_id, secret_id, **kwargs):
+            self.auth = (role_id, secret_id)
 
-            return self.config_file
+    return _Client
 
-    return _ConfigTestHelper()
+
+@pytest.fixture()
+def create_settings_file(tmp_path):
+    def _save(settings: dict):
+        f = os.path.join(tmp_path, 'settings.yaml')
+        with open(f, 'wt') as stream:
+            yaml.dump(settings, stream)
+        return f
+    return _save
