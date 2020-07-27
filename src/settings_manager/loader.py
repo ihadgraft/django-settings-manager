@@ -37,30 +37,47 @@ class SettingsLoader(object):
     def __init__(self, secret_loader: AbstractSecretLoader = None):
         self.secret_loader = secret_loader
 
-    def get_path(self):
-        return os.environ.get('DJANGO_ENV_SETTINGS',
+    def _load_settings(self):
+        path = os.environ.get('DJANGO_ENV_SETTINGS',
                               '/etc/django-settings.yaml')
-
-    def load(self):
-        context = {
-            'secret': {},
-            'env': os.environ,
-            'settings': {},
-        }
-
-        path = self.get_path()
         try:
             with open(path) as stream:
-                context['settings'].update(yaml.safe_load(stream))
+                return yaml.safe_load(stream)
         except FileNotFoundError as exc:
             raise SettingsError(
                 "File '%(file)s' referenced by DJANGO_ENV_SETTINGS does not "
                 "exist" % {"file": path}
             ) from exc
 
+    def _get_context(self) -> dict:
+        return {
+            'secret': {},
+            'env': os.environ,
+            'settings': {},
+        }
+
+    def _after_settings_loaded(self, settings: dict) -> dict:
+        """
+        Subclasses can override this to modify settings after they are loaded,
+        but before they are processed.
+        """
+        return settings
+
+    def _after_settings_processed(self, settings: dict) -> dict:
+        """
+        Subclasses can override this to modify settings after secrets are
+        resolved and templates are processed.
+        """
+        return settings
+
+    def load(self):
+        context = self._get_context()
+        loaded_settings = self._load_settings()
+        loaded_settings = self._after_settings_loaded(loaded_settings)
         if self.secret_loader is not None:
             context['secret'].update(
-                self.secret_loader.resolve(context['settings'])
+                self.secret_loader.resolve(loaded_settings)
             )
-
-        return replace_context(context['settings'], context)
+        context['settings'] = loaded_settings
+        result = replace_context(loaded_settings, context)
+        return self._after_settings_processed(result)
